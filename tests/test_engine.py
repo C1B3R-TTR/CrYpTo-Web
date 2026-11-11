@@ -11,16 +11,10 @@ class SelfContainedV5Tests(unittest.TestCase):
         self.plaintext = b"contenido secreto del usuario" * 40
         self.name = "documento.pdf"
 
-    def test_roundtrip_without_password(self):
+    def test_roundtrip(self):
         blob = ce.encrypt_selfcontained(self.plaintext, self.name)
         self.assertTrue(blob.startswith(ce.MAGIC_V5))
         plain, filename = ce.decrypt_file(blob)
-        self.assertEqual(plain, self.plaintext)
-        self.assertEqual(filename, self.name)
-
-    def test_roundtrip_with_password(self):
-        blob = ce.encrypt_selfcontained(self.plaintext, self.name, "clave-s3creta")
-        plain, filename = ce.decrypt_file(blob, password="clave-s3creta")
         self.assertEqual(plain, self.plaintext)
         self.assertEqual(filename, self.name)
 
@@ -31,16 +25,6 @@ class SelfContainedV5Tests(unittest.TestCase):
     def test_embedded_key_is_not_plainly_visible(self):
         blob = ce.encrypt_selfcontained(self.plaintext, self.name)
         self.assertNotIn(b"CVLT", blob[len(ce.MAGIC_V5):len(ce.MAGIC_V5) + 2])
-
-    def test_wrapped_file_requires_password(self):
-        blob = ce.encrypt_selfcontained(self.plaintext, self.name, "clave-s3creta")
-        with self.assertRaises(ValueError):
-            ce.decrypt_file(blob)
-
-    def test_wrong_password_is_rejected(self):
-        blob = ce.encrypt_selfcontained(self.plaintext, self.name, "clave-s3creta")
-        with self.assertRaises(ValueError):
-            ce.decrypt_file(blob, password="otra-clave")
 
     def test_tampered_key_section_is_rejected(self):
         blob = bytearray(ce.encrypt_selfcontained(self.plaintext, self.name))
@@ -70,23 +54,12 @@ class SelfContainedV5Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ce.encrypt_selfcontained(b"x" * 11, "a.txt")
 
-    def test_empty_password_is_rejected(self):
-        with self.assertRaises(ValueError):
-            ce.encrypt_selfcontained(self.plaintext, self.name, "")
-
-    def test_inspect_v5_without_password(self):
+    def test_inspect_v5(self):
         blob = ce.encrypt_selfcontained(self.plaintext, self.name)
         info = ce.inspect_blob(blob)
         self.assertEqual(info["version"], 5)
         self.assertTrue(info["has_embedded_key"])
-        self.assertFalse(info["needs_password"])
         self.assertFalse(info["needs_master_key"])
-
-    def test_inspect_v5_with_password(self):
-        blob = ce.encrypt_selfcontained(self.plaintext, self.name, "clave-s3creta")
-        info = ce.inspect_blob(blob)
-        self.assertEqual(info["version"], 5)
-        self.assertTrue(info["needs_password"])
 
     def test_inspect_unknown_blob(self):
         self.assertEqual(ce.inspect_blob(b"DATOS-ALEATORIOS")["version"], 0)

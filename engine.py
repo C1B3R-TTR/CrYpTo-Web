@@ -33,12 +33,9 @@ MAGIC_V2 = b"CVLT\x02\x00"
 FILE_FORMAT_VERSION = 5
 
 MODE_EMBEDDED = 0x00
-MODE_WRAPPED = 0x01
 EMBEDDED_SECTION_SIZE = MASTER_KEY_LENGTH
-WRAPPED_SECTION_SIZE = SALT_SIZE + NONCE_SIZE + MASTER_KEY_LENGTH + TAG_SIZE
 V5_PREFIX_SIZE = len(MAGIC_V5) + 1
 V5_HEADER_SIZE = V5_PREFIX_SIZE + EMBEDDED_SECTION_SIZE + SALT_SIZE
-V5_WRAPPED_HEADER_SIZE = V5_PREFIX_SIZE + WRAPPED_SECTION_SIZE + SALT_SIZE
 
 MAX_FILE_BYTES = 256 * 1024 * 1024
 MAX_ENCRYPTED_BYTES = MAX_FILE_BYTES + (2 * 1024 * 1024)
@@ -185,34 +182,6 @@ def _obfuscate_key(master_key: bytes) -> bytes:
     return bytes(a ^ b for a, b in zip(master_key, pad))
 
 
-def _wrap_master_key(master_key: str, password: str) -> bytes:
-    wrap_salt = os.urandom(SALT_SIZE)
-    seed = _derive_seed(password, wrap_salt)
-    wrap_key = _derive_key(seed, b"cryptovault/v5/wrap-aes-256-gcm", KEY_SIZE)
-    aad = MAGIC_V5 + bytes([MODE_WRAPPED])
-    nonce = os.urandom(NONCE_SIZE)
-    wrapped = AESGCM(wrap_key).encrypt(
-        nonce, master_key.encode("utf-8"), aad
-    )
-    return wrap_salt + nonce + wrapped
-
-
-def _unwrap_master_key(section: bytes, password: str) -> str:
-    if len(section) != WRAPPED_SECTION_SIZE:
-        raise ValueError("Archivo v5 inválido o truncado.")
-    wrap_salt = section[:SALT_SIZE]
-    nonce = section[SALT_SIZE:SALT_SIZE + NONCE_SIZE]
-    wrapped = section[SALT_SIZE + NONCE_SIZE:]
-    seed = _derive_seed(password, wrap_salt)
-    wrap_key = _derive_key(seed, b"cryptovault/v5/wrap-aes-256-gcm", KEY_SIZE)
-    aad = MAGIC_V5 + bytes([MODE_WRAPPED])
-    try:
-        master_key = AESGCM(wrap_key).decrypt(nonce, wrapped, aad)
-    except Exception:
-        raise ValueError("Contraseña incorrecta o archivo corrupto.") from None
-    return master_key.decode("utf-8")
-
-
 def _safe_filename(name: str) -> str:
     if not isinstance(name, str):
         raise TypeError("El nombre de archivo debe ser texto.")
@@ -262,7 +231,6 @@ def _parse_payload(payload: bytes) -> tuple[bytes, str]:
 def encrypt_selfcontained(
     plaintext: bytes,
     original_filename: str,
-    password: str | None = None,
     progress_callback=None,
 ) -> bytes:
     if not isinstance(plaintext, (bytes, bytearray)):
@@ -270,25 +238,17 @@ def encrypt_selfcontained(
     if len(plaintext) > MAX_FILE_BYTES:
         raise ValueError("El archivo supera el límite permitido.")
 
-    if password is not None and not password:
-        raise ValueError("La contraseña no puede estar vacía.")
-
     master_key = generate_master_key()
     safe_name = _safe_filename(original_filename)
     if progress_callback:
         progress_callback(10)
 
-    if password is None:
-        mode = MODE_EMBEDDED
-        key_section = _obfuscate_key(master_key.encode("utf-8"))
-    else:
-        mode = MODE_WRAPPED
-        key_section = _wrap_master_key(master_key, password)
+    key_section = _obfuscate_key(master_key.encode("utf-8"))
     if progress_callback:
         progress_callback(25)
 
     salt = os.urandom(SALT_SIZE)
-    header = MAGIC_V5 + bytes([mode]) + key_section + salt
+    header = MAGIC_V5 + bytes([MODE_EMBEDDED]) + key_section + salt
     if progress_callback:
         progress_callback(40)
 
@@ -311,36 +271,25 @@ def encrypt_selfcontained(
     return blob
 
 
-def _decrypt_v5(blob: bytes, password: str | None, progress_callback=None) -> tuple[bytes, str]:
+def _decrypt_v5(blob: bytes, progress_callback=None) -> tuple[bytes, str]:
     mode = blob[len(MAGIC_V5)]
-    if mode == MODE_EMBEDDED:
-        header_size = V5_HEADER_SIZE
-        section_size = EMBEDDED_SECTION_SIZE
-    elif mode == MODE_WRAPPED:
-        header_size = V5_WRAPPED_HEADER_SIZE
-        section_size = WRAPPED_SECTION_SIZE
-    else:
+    if mode != MODE_EMBEDDED:
         raise ValueError("Archivo v5 con modo desconocido.")
 
-    min_size = header_size + HMAC_SIZE + NONCE_SIZE + TAG_SIZE
+    min_size = V5_HEADER_SIZE + HMAC_SIZE + NONCE_SIZE + TAG_SIZE
     if len(blob) < min_size:
         raise ValueError("Archivo inválido o corrupto.")
 
-    key_section = blob[V5_PREFIX_SIZE:V5_PREFIX_SIZE + section_size]
-    if mode == MODE_EMBEDDED:
-        master_key = _obfuscate_key(key_section).decode("utf-8")
-    else:
-        if not password:
-            raise ValueError("Este archivo se cifró con contraseña.")
-        master_key = _unwrap_master_key(key_section, password)
+    key_section = blob[V5_PREFIX_SIZE:V5_PREFIX_SIZE + EMBEDDED_SECTION_SIZE]
+    master_key = _obfuscate_key(key_section).decode("utf-8")
 
     if progress_callback:
         progress_callback(45)
 
-    header = blob[:header_size]
-    salt = blob[header_size - SALT_SIZE:header_size]
-    mac_stored = blob[header_size:header_size + HMAC_SIZE]
-    layer3 = blob[header_size + HMAC_SIZE:]
+    header = blob[:V5_HEADER_SIZE]
+    salt = blob[V5_HEADER_SIZE - SALT_SIZE:V5_HEADER_SIZE]
+    mac_stored = blob[V5_HEADER_SIZE:V5_HEADER_SIZE + HMAC_SIZE]
+    layer3 = blob[V5_HEADER_SIZE + HMAC_SIZE:]
 
     k1, k2, k3, kmac = _derive_keys_v4(master_key, salt)
     if progress_callback:
@@ -535,39 +484,34 @@ def inspect_blob(blob: bytes) -> dict:
         raise TypeError("El contenido debe ser bytes.")
     if blob.startswith(MAGIC_V5):
         mode = blob[len(MAGIC_V5)]
-        if mode not in (MODE_EMBEDDED, MODE_WRAPPED):
+        if mode != MODE_EMBEDDED:
             raise ValueError("Archivo v5 con modo desconocido.")
         return {
             "version": 5,
             "has_embedded_key": True,
-            "needs_password": mode == MODE_WRAPPED,
             "needs_master_key": False,
         }
     if blob.startswith(MAGIC):
         return {
             "version": 4,
             "has_embedded_key": False,
-            "needs_password": False,
             "needs_master_key": True,
         }
     if blob.startswith(MAGIC_V3):
         return {
             "version": 3,
             "has_embedded_key": False,
-            "needs_password": False,
             "needs_master_key": True,
         }
     if blob.startswith(MAGIC_V2):
         return {
             "version": 2,
             "has_embedded_key": False,
-            "needs_password": False,
             "needs_master_key": True,
         }
     return {
         "version": 0,
         "has_embedded_key": False,
-        "needs_password": False,
         "needs_master_key": False,
     }
 
@@ -575,7 +519,6 @@ def inspect_blob(blob: bytes) -> dict:
 def decrypt_file(
     blob: bytes,
     master_key: str | None = None,
-    password: str | None = None,
     progress_callback=None,
 ) -> tuple[bytes, str]:
     if not isinstance(blob, (bytes, bytearray)):
@@ -584,26 +527,26 @@ def decrypt_file(
         raise ValueError("El archivo supera el límite permitido.")
 
     if blob.startswith(MAGIC_V5):
-        return _decrypt_v5(blob, password, progress_callback)
+        return _decrypt_v5(blob, progress_callback)
     if blob.startswith(MAGIC):
         if not master_key:
             raise ValueError(
                 "Este archivo se cifró con el CryptoVault de escritorio: "
-                "necesita la master key."
+                "descífralo con la app de escritorio o con su master key."
             )
         return _decrypt_v4(blob, master_key, progress_callback)
     if blob.startswith(MAGIC_V3):
         if not master_key:
             raise ValueError(
                 "Este archivo se cifró con el CryptoVault de escritorio: "
-                "necesita la master key."
+                "descífralo con la app de escritorio o con su master key."
             )
         return _decrypt_v3(blob, master_key, progress_callback)
     if blob.startswith(MAGIC_V2):
         if not master_key:
             raise ValueError(
                 "Este archivo se cifró con el CryptoVault de escritorio: "
-                "necesita la master key."
+                "descífralo con la app de escritorio o con su master key."
             )
         return _decrypt_v2(blob, master_key, progress_callback)
     raise ValueError("Archivo inválido o no cifrado con CryptoVault.")

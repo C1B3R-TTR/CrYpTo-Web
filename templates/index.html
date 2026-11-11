@@ -26,12 +26,8 @@
         <p class="dz-hint">Arrastra el archivo aquí o haz clic para seleccionarlo</p>
         <p class="dz-name" data-name></p>
       </div>
-      <label class="field">
-        <span>Contraseña <em>(opcional)</em></span>
-        <input type="password" id="encrypt-password" placeholder="Vacío = el archivo se descifra solo" autocomplete="new-password">
-      </label>
-      <p class="note">Sin contraseña: el archivo lleva la master key embebida y se descifra solo
-        cargándolo. Con contraseña: también se pedirá al descifrar.</p>
+      <p class="note">La master key de 69 caracteres se genera sola y queda
+        embebida dentro del archivo cifrado: no tienes que escribir ni guardar nada.</p>
       <button class="btn" id="encrypt-btn" disabled>Cifrar y descargar</button>
       <p class="status" id="encrypt-status"></p>
     </section>
@@ -43,14 +39,6 @@
         <p class="dz-hint">Arrastra el archivo .cvault aquí o haz clic para seleccionarlo</p>
         <p class="dz-name" data-name></p>
       </div>
-      <label class="field" id="decrypt-password-field" hidden>
-        <span>Contraseña del archivo</span>
-        <input type="password" id="decrypt-password" placeholder="Contraseña con la que se cifró" autocomplete="current-password">
-      </label>
-      <label class="field" id="decrypt-key-field" hidden>
-        <span>Master key <em>(archivos del desktop v2–v4)</em></span>
-        <input type="password" id="decrypt-key" placeholder="Master key de 69 caracteres" autocomplete="off">
-      </label>
       <p class="note" id="decrypt-note">Carga el archivo y pulsa Descifrar.</p>
       <button class="btn" id="decrypt-btn" disabled>Descifrar y descargar</button>
       <p class="status" id="decrypt-status"></p>
@@ -58,9 +46,9 @@
   </main>
 
   <footer>
-    <p>CryptoVault Web 1.0.0 · formato v5 autocontenido · compatible con v2/v3/v4 del escritorio</p>
-    <p class="warn">La key embebida protege por ofuscación: quien tenga el archivo sin contraseña
-      podrá descifrarlo. Usa la contraseña opcional para protección real.</p>
+    <p>CryptoVault Web 1.0.0 · formato v5 autocontenido · servidor 100% local</p>
+    <p class="warn">La key embebida protege por ofuscación: quien tenga el archivo
+      podrá descifrarlo. Guarda los .cvault en lugares seguros.</p>
   </footer>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>

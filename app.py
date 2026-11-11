@@ -47,13 +47,8 @@ def inspect():
 def encrypt():
     def handler():
         uploaded = _uploaded_file()
-        password = (request.form.get("password") or "").strip()
         data = uploaded.read()
-        blob = engine.encrypt_selfcontained(
-            data,
-            uploaded.filename,
-            password if password else None,
-        )
+        blob = engine.encrypt_selfcontained(data, uploaded.filename)
         name = engine.encrypted_filename(uploaded.filename)
         response = send_file(
             io.BytesIO(blob),
@@ -70,14 +65,8 @@ def encrypt():
 def decrypt():
     def handler():
         uploaded = _uploaded_file()
-        password = (request.form.get("password") or "").strip()
-        master_key = (request.form.get("master_key") or "").strip()
         data = uploaded.read()
-        plaintext, filename = engine.decrypt_file(
-            data,
-            master_key=master_key if master_key else None,
-            password=password if password else None,
-        )
+        plaintext, filename = engine.decrypt_file(data)
         response = send_file(
             io.BytesIO(plaintext),
             as_attachment=True,

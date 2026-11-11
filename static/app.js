@@ -93,7 +93,6 @@ $("encrypt-btn").addEventListener("click", async () => {
   if (!file) return;
   const form = new FormData();
   form.append("file", file);
-  form.append("password", $("encrypt-password").value);
   const result = await postForm("/api/encrypt", form, "encrypt-status", "Cifrando…");
   if (result) {
     triggerDownload(result.blob, result.filename || file.name + ".cvault");
@@ -104,8 +103,6 @@ $("encrypt-btn").addEventListener("click", async () => {
 setupDropzone("decrypt-file", async (file) => {
   $("decrypt-btn").disabled = !file;
   setStatus("decrypt-status", "Analizando archivo…", "wait");
-  $("decrypt-password-field").hidden = true;
-  $("decrypt-key-field").hidden = true;
   $("decrypt-note").textContent = "Carga el archivo y pulsa Descifrar.";
   if (!file) return;
 
@@ -119,15 +116,9 @@ setupDropzone("decrypt-file", async (file) => {
       return;
     }
     const info = await resp.json();
-    if (info.needs_password) {
-      $("decrypt-password-field").hidden = false;
+    if (info.needs_master_key) {
       $("decrypt-note").textContent =
-        "Archivo v5 con contraseña: introdúcela y pulsa Descifrar.";
-      setStatus("decrypt-status", formatSize(file.size) + " · v5 con contraseña", "");
-    } else if (info.needs_master_key) {
-      $("decrypt-key-field").hidden = false;
-      $("decrypt-note").textContent =
-        "Archivo v" + info.version + " del desktop: pega la master key de 69 caracteres.";
+        "Archivo v" + info.version + " del desktop: descífralo con la app de escritorio CryptoVault.";
       setStatus("decrypt-status", formatSize(file.size) + " · v" + info.version + " (desktop)", "");
     } else {
       $("decrypt-note").textContent =
@@ -144,8 +135,6 @@ $("decrypt-btn").addEventListener("click", async () => {
   if (!file) return;
   const form = new FormData();
   form.append("file", file);
-  form.append("password", $("decrypt-password").value);
-  form.append("master_key", $("decrypt-key").value);
   const result = await postForm("/api/decrypt", form, "decrypt-status", "Descifrando…");
   if (result) {
     triggerDownload(result.blob, result.filename);
