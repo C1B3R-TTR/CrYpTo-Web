@@ -84,10 +84,14 @@ class DesktopCompatTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ce.decrypt_file(blob)
 
-    def test_encrypted_filename_suffix(self):
-        self.assertEqual(
-            ce.encrypted_filename("../../notas.txt"), "notas.txt.cvault"
-        )
+    def test_encrypted_filename_reveals_nothing(self):
+        name1 = ce.encrypted_filename()
+        name2 = ce.encrypted_filename()
+        self.assertTrue(name1.endswith(".cvault"))
+        self.assertNotEqual(name1, name2)
+        self.assertNotIn(".jpg", name1)
+        self.assertNotIn(".pdf", name1)
+        self.assertRegex(name1, r"^vault-[0-9a-f]{16}\.cvault$")
 
 
 class LegacyV3Tests(unittest.TestCase):

@@ -4,8 +4,10 @@ Versión web de CryptoVault pensada para el mínimo manejo del usuario:
 **cifrar, descifrar y cargar el archivo**, nada más.
 
 - **Cifrar**: carga un archivo → pulsa el botón → descarga un único
-  archivo `.cvault` autocontenido con la master key de 69 caracteres
-  embebida dentro.
+  archivo `vault-XXXX.cvault` con nombre aleatorio y la master key de
+  69 caracteres embebida dentro. El nombre y el tipo del archivo
+  original viajan cifrados por dentro: desde fuera no se puede saber
+  qué contiene.
 - **Descifrar**: carga el `.cvault` → pulsa el botón → descarga el
   archivo original con su nombre. Sin escribir claves ni contraseñas.
 

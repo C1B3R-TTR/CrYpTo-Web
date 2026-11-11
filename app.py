@@ -49,7 +49,7 @@ def encrypt():
         uploaded = _uploaded_file()
         data = uploaded.read()
         blob = engine.encrypt_selfcontained(data, uploaded.filename)
-        name = engine.encrypted_filename(uploaded.filename)
+        name = engine.encrypted_filename()
         response = send_file(
             io.BytesIO(blob),
             as_attachment=True,

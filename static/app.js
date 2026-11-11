@@ -95,8 +95,8 @@ $("encrypt-btn").addEventListener("click", async () => {
   form.append("file", file);
   const result = await postForm("/api/encrypt", form, "encrypt-status", "Cifrando…");
   if (result) {
-    triggerDownload(result.blob, result.filename || file.name + ".cvault");
-    setStatus("encrypt-status", "✓ Descargado: " + (result.filename || file.name + ".cvault"), "ok");
+    triggerDownload(result.blob, result.filename);
+    setStatus("encrypt-status", "✓ Descargado: " + result.filename, "ok");
   }
 });
 

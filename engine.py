@@ -204,8 +204,8 @@ def _safe_filename(name: str) -> str:
     return name
 
 
-def encrypted_filename(name: str) -> str:
-    return _safe_filename(name) + ".cvault"
+def encrypted_filename() -> str:
+    return f"vault-{secrets.token_hex(8)}.cvault"
 
 
 def _build_payload(plaintext: bytes, filename: str) -> bytes:
