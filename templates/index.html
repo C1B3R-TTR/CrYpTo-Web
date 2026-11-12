@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="hero">
-    <h1>CryptoVault <span>Web</span></h1>
+    <h1>CryptoVault</h1>
     <div class="chips">
       <span class="chip chip-aes">AES-256-GCM</span>
       <span class="chip chip-ocb">AES-256-OCB3</span>
@@ -26,10 +26,6 @@
         <p class="dz-hint">Arrastra el archivo aquí o haz clic para seleccionarlo</p>
         <p class="dz-name" data-name></p>
       </div>
-      <p class="note">La master key de 69 caracteres se genera sola y queda
-        embebida dentro del archivo cifrado. El nombre y el tipo del archivo
-        original viajan cifrados por dentro: el resultado es un
-        <strong>vault-XXXX.cvault</strong> que no revela nada.</p>
       <button class="btn" id="encrypt-btn" disabled>Cifrar y descargar</button>
       <p class="status" id="encrypt-status"></p>
     </section>
@@ -46,10 +42,9 @@
       <p class="status" id="decrypt-status"></p>
     </section>
   </main>
-
   <footer>
-    <p>CryptoVault Web 1.0.0 · formato v5 autocontenido · servidor 100% local</p>
-    <p class="warn">La key embebida protege por ofuscación: quien tenga el archivo
+    <p>CryptoVault Web 1.0.0 · formato v5 autocontenido</p>
+    <p class="warn">Quien tenga el archivo
       podrá descifrarlo. Guarda los .cvault en lugares seguros.</p>
   </footer>
 
